@@ -12,7 +12,7 @@ queue sharedBuffer;
 int finishedInputFilesCount, inputCount, maxThreads, badInputCount;
 char* outputFile;
 
-void* producerPool(char* inputFiles) {
+void* producerQueue(char* inputFiles) {
 	char** inputFileNames = (char**) inputFiles;
 
 	pthread_t producerThreads[inputCount];
@@ -24,20 +24,16 @@ void* producerPool(char* inputFiles) {
 		pthread_join(producerThreads[i], NULL);
 	}
 	for(i=0; i<inputCount; i++){
-		// signal requestor threads that the queue is empty so can begin to work.
 		pthread_cond_signal(&queueEmptyFlag);
 	}
 	return NULL;
 }
 
-void* consumerPool(FILE* outFile){
-	// declare resolver threads.
+void* consumerQueue(FILE* outFile){
 	pthread_t consumerThreads[inputCount];
 	int i;
-	// create resolver threads to perform dns lookup until maxThreads have been created.
 	for(i=0; i<maxThreads; i++){
 		pthread_create(&consumerThreads[i], NULL, dns, outFile);
-		// wait until resolver threads have finished.
 		pthread_join(consumerThreads[i], NULL);
 	}
 	return NULL;
@@ -52,7 +48,6 @@ void* putFileQueue(char* filename){
 	FILE* inputfp = fopen(filePath, "r");
 
 	if(!inputfp){
-		// print error to stderror
 		perror("Error: unable to open input file.\n");
 
 		pthread_mutex_lock(&producerMutexFlag);
@@ -134,38 +129,30 @@ int main(int argc, char* argv[]){
 		return(EXIT_FAILURE);
 	}
 
-	// Create array of input files.
 	int i;
 	for(i=0; i<inputCount; i++){
 		inputFiles[i] = argv[i+1];
 	}
 
-	//open output file.
 	FILE* outFile = fopen(outputFile, "w");
-		// Error Handling 2: bogus output file.
 		if(!outFile){
 		// print to std error and exit.
 		perror("Error: unable to open output file");
 		exit(EXIT_FAILURE);
 	}
 
-	// declare requestor ID thread, used to initialize requestor thread pool.
 	pthread_t requestorID;
 
-	// requestor = producer, startup for requestor pool.
-	int producer = pthread_create(&requestorID, NULL, (void*) producerPool, inputFiles);
+	int producer = pthread_create(&requestorID, NULL, (void*) producerQueue, inputFiles);
 	if (producer != 0){
 		errno = producer;
 		perror("Error: Create Thread on Produce");
 		exit(EXIT_FAILURE);
 	}
 
-	// declare resolver ID thread, used to initialize resolver thread pool.
 	pthread_t resolverID;
 
-	// resolver = consumer, startup for resolver pool.
-	// pthread_create(pthread_t *threadName, const pthread_attr * attr, void*(*start_routine), void* arg)
-	int consumer = pthread_create(&resolverID, NULL, (void*) consumerPool, outFile);
+	int consumer = pthread_create(&resolverID, NULL, (void*) consumerQueue, outFile);
 	if (consumer != 0){
 		errno = consumer;
 		perror("Error: Create Thread on Consume");

@@ -17,11 +17,11 @@
 
 void* putFileQueue(char* filename);
 
-void* producerPool(char* inputFiles);
+void* producerQueue(char* inputFiles);
 
 void* dns();
 
-void* consumerPool();
+void* consumerQueue();
 
 int main(int argc, char* argv[]);
 
